@@ -95,7 +95,8 @@ class Board:
                 self.selection = [position[0], position[1], i] # select the piece
                 return # and we're done here
             movetext = self.toMovetext(self.selection[2], i)
-            self.move(movetext) # try to move the previous selected piece to where we just clicked
+            if movetext in self.validMoves():
+                self.move(movetext) # try to move the previous selected piece to where we just clicked
 
             # print(f"Click placed at {i}")
 
@@ -170,10 +171,11 @@ class Board:
             target = place - width + 1 - evenRow
             if self.checkStep(place, target, team) == 1: # use the checkStep function to check if we can land there
                 validMoves.append(f"{place}-{target}")
+        return validMoves # I don't know how I forgot this the first time
     def checkStep(self, start, end, team):
         width = self.size[0]//2
         maxPlace = len(self.pieces)
-        evenRow = ((place-1)//width)%2 # 0 on odd rows and 1 on even rows
+        evenRow = ((start-1)//width)%2 # 0 on odd rows and 1 on even rows
 
         if end < 1 or end > maxPlace: # if there isn't a place there then we obviously can't go there
             return 0 # 0 means that we can't go there
