@@ -102,31 +102,55 @@ class Board:
 
         self.selection = [0, 0, 0] # reset the selection
     def move(self, move):
-        if move.find("-") == -1: # can't deal with jumps yet
+        if move.find("-") != -1: # This is the code for steps
+            placeStrings = move.split("-")
+            if len(placeStrings) != 2: # just sanity check, make sure we're not getting something stupid
+                return False
+
+            start = int(placeStrings[0])
+            end = int(placeStrings[1])
+
+            # checking if the move is valid is not our problem anymore
+            # if not (start and end): # if start and end aren't both nonzero then we give up
+            #     return False
+            #
+            # width = self.size[0]//2
+            # evenRow = ((start-1)//width)%2 # 0 on odd rows and 1 on even rows
+            # offset = 1 - 2*evenRow # swaps between 1 on the odd rows and -1 on the even ones
+            # validEnds = [start + width, start - width]
+            # # If the place is at the edge of the board then it loses a few options
+            # if start%width != evenRow: # somewhat surprisingly, this works as places begin at 1
+            #     validEnds.append(start + width + offset)
+            #     validEnds.append(start - width + offset)
+            #
+            # if end not in validEnds:
+            #     return False
+
+            self.pieces[end - 1].team = self.pieces[start - 1].team
+            self.pieces[start - 1].team = 0
+            return True # if we've gotten this far, the move was probably valid
+        elif move.find("x") != -1: # Here we deal with jumps
+            placeStrings = move.split("x")
+            if len(placeStrings) < 2: # make sure there is at least a beginning and an end
+                return False
+
+            for i in range(len(placeStrings) - 1): # the piece stops on the last place so we don't need to do anything at that point
+                start = int(placeStrings[i])
+                end = int(placeStrings[i+1])
+
+                width = self.size[0]//2
+                evenRow = ((start-1)//width)%2 # 0 on odd rows and 1 on even rows
+                offset = 1 - 2*evenRow # swaps between 1 on the odd rows and -1 on the even ones
+
+                middle = (start + end + offset)//2 # it's just the average of the start and end, plus half the offset (wacky magic panacea value)
+                self.pieces[middle - 1].team = 0 # KILL IT!!!
+            # we move the piece at the end, to save a little time
+            start = int(placeStrings[0])
+            end = int(placeStrings[len(placeStrings) - 1])
+            self.pieces[end - 1].team = self.pieces[start - 1].team
+            self.pieces[start - 1].team = 0
+        else:
             return False
-
-        placeStrings = move.split("-")
-        start = int(placeStrings[0])
-        end = int(placeStrings[1])
-
-        if not (start and end): # if start and end aren't both nonzero then we give up
-            return False
-
-        width = self.size[0]//2
-        evenRow = ((start-1)//width)%2 # 0 on odd rows and 1 on even rows
-        offset = 1 - 2*evenRow # swaps between 1 on the odd rows and -1 on the even ones
-        validEnds = [start + width, start - width]
-        # If the place is at the edge of the board then it loses a few options
-        if start%width != evenRow: # somewhat surprisingly, this works as places begin at 1
-            validEnds.append(start + width + offset)
-            validEnds.append(start - width + offset)
-
-        if end not in validEnds:
-            return False
-
-        self.pieces[end - 1].team = self.pieces[start - 1].team
-        self.pieces[start - 1].team = 0
-        return True # if we've gotten this far, the move was probably valid
     def toMovetext(self, start, end): # this function won't check whether the move actually makes sense, as that's someone else's job
         # we need some logic to figure out whether this is a short move, otherwise a jump is assumed
         width = self.size[0]//2
@@ -154,23 +178,55 @@ class Board:
             # First, we need to check a move down and to the left
             # This is place + width on an odd row and place + width - 1 on an even row
             target = place + width - evenRow
-            if self.checkStep(place, target, team) == 1: # use the checkStep function to check if we can land there
+            stepability = self.checkStep(place, target, team)
+            if stepability == 1: # check if we can land there
                 validMoves.append(f"{place}-{target}")
+            elif stepability == 2: # If this is true, there is an enemy piece there
+                # We need to check if we can land behind and take it
+                # To find this from the place we just repeat the step, but replace evenRow with 1 - evenRow as it is opposite
+                # behind = place + width - evenRow + width - 1 + evenRow can be simplified
+                behind = place + 2*width - 1
+                if self.checkStep(target, behind, team) == 1: # if we can land here
+                    validMoves.append(f"{place}x{behind}") # then we can jump to behind; later a recursion should happen here
             # Next, we check down and to the right
             # This is place + width + 1 on an odd row and place + width on an even row
             target = place + width + 1 - evenRow
-            if self.checkStep(place, target, team) == 1: # use the checkStep function to check if we can land there
+            stepability = self.checkStep(place, target, team)
+            if stepability == 1: # check if we can land there
                 validMoves.append(f"{place}-{target}")
+            elif stepability == 2: # If this is true, there is an enemy piece there
+                # We need to check if we can land behind and take it
+                # To find this from the place we just repeat the step, but replace evenRow with 1 - evenRow as it is opposite
+                # behind = place + width + 1 - evenRow + width + 1 - 1 + evenRow can be simplified
+                behind = place + 2*width + 1
+                if self.checkStep(target, behind, team) == 1: # if we can land here
+                    validMoves.append(f"{place}x{behind}") # then we can jump to behind; later a recursion should happen here
             # Now we check up and to the left
             # This is place - width on an odd row and place - width - 1 on an even row
             target = place - width - evenRow
-            if self.checkStep(place, target, team) == 1: # use the checkStep function to check if we can land there
+            stepability = self.checkStep(place, target, team)
+            if stepability == 1: # check if we can land there
                 validMoves.append(f"{place}-{target}")
+            elif stepability == 2: # If this is true, there is an enemy piece there
+                # We need to check if we can land behind and take it
+                # To find this from the place we just repeat the step, but replace evenRow with 1 - evenRow as it is opposite
+                # behind = place - width - evenRow - width - 1 + evenRow can be simplified
+                behind = place - 2*width - 1
+                if self.checkStep(target, behind, team) == 1: # if we can land here
+                    validMoves.append(f"{place}x{behind}") # then we can jump to behind; later a recursion should happen here
             # Finally, we need check up and to the right
             # This is place - width + 1 on an odd row and place - width on an even row
             target = place - width + 1 - evenRow
-            if self.checkStep(place, target, team) == 1: # use the checkStep function to check if we can land there
+            stepability = self.checkStep(place, target, team)
+            if stepability == 1: # check if we can land there
                 validMoves.append(f"{place}-{target}")
+            elif stepability == 2: # If this is true, there is an enemy piece there
+                # We need to check if we can land behind and take it
+                # To find this from the place we just repeat the step, but replace evenRow with 1 - evenRow as it is opposite
+                # behind = place - width + 1 - evenRow - width + 1 - 1 + evenRow can be simplified
+                behind = place - 2*width + 1
+                if self.checkStep(target, behind, team) == 1: # if we can land here
+                    validMoves.append(f"{place}x{behind}") # then we can jump to behind; later a recursion should happen here
         return validMoves # I don't know how I forgot this the first time
     def checkStep(self, start, end, team):
         width = self.size[0]//2
