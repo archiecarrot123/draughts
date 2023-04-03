@@ -153,27 +153,23 @@ class Board:
             # First, we need to check a move down and to the left
             # This is place + width on an odd row and place + width - 1 on an even row
             target = place + width - evenRow
-            if target <= maxPlace and not (target%width == 0 and evenRow == 1): # This checks that down and to the left is not off the left or bottom of the board
-                if self.pieces[target - 1].team == 0: # this checks that the piece here is unowned
-                    validMoves.append(f"{place}-{target}")
+            if self.checkStep(place, target, team) == 1: # use the checkStep function to check if we can land there
+                validMoves.append(f"{place}-{target}")
             # Next, we check down and to the right
             # This is place + width + 1 on an odd row and place + width on an even row
             target = place + width + 1 - evenRow
-            if target <= maxPlace and not (target%width == 1 and evenrow == 0): # This checks that down and to the right is not off the right or bottom of the board
-                if self.pieces[target - 1].team == 0: # this checks that the piece here is unowned
-                    validMoves.append(f"{place}-{target}")
+            if self.checkStep(place, target, team) == 1: # use the checkStep function to check if we can land there
+                validMoves.append(f"{place}-{target}")
             # Now we check up and to the left
             # This is place - width on an odd row and place - width - 1 on an even row
             target = place - width - evenRow
-            if target > 0 and not (target%width == 0 and evenRow == 1): # This checks that up and to the left is not off the left or top of the board
-                if self.pieces[target - 1].team == 0: # this checks that the piece here is unowned
-                    validMoves.append(f"{place}-{target}")
+            if self.checkStep(place, target, team) == 1: # use the checkStep function to check if we can land there
+                validMoves.append(f"{place}-{target}")
             # Finally, we need check up and to the right
             # This is place - width + 1 on an odd row and place - width on an even row
             target = place - width + 1 - evenRow
-            if target > 0 and not (target%width == 1 and evenRow == 0): # This checks that up and to the right is not off the right or top of the board
-                if self.pieces[target - 1].team == 0: # this checks that the piece here is unowned
-                    validMoves.append(f"{place}-{target}")
+            if self.checkStep(place, target, team) == 1: # use the checkStep function to check if we can land there
+                validMoves.append(f"{place}-{target}")
     def checkStep(self, start, end, team):
         width = self.size[0]//2
         maxPlace = len(self.pieces)
