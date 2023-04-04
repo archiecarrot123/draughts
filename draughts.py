@@ -48,7 +48,8 @@ class Board:
                 self.pieces.append(Piece(position, i, 1))
             else: # everywhere else there is nothing
                 self.pieces.append(Piece(position, i))
-    def draw(self, ctx, w, h):
+
+    def draw(self, ctx, w, h): # this function draws the board and everything on it
         ctx.set_source_rgb(0, 0, 0)
         ctx.paint()
 
@@ -86,7 +87,8 @@ class Board:
 
         # update the rectangleSize so we can use it when clicked
         self.rectangleSize = rectangleSize
-    def clicked(self, x, y):
+
+    def clicked(self, x, y): # this function is responsible for handling clicks (obviously)
         position = int(x // self.rectangleSize[0]) + 1, int(y // self.rectangleSize[1]) + 1
         # print(f"Click in position {position}")
         if (position[0] + position[1]) % 2 == 1: # this checks if we are in a black square
@@ -101,7 +103,8 @@ class Board:
             # print(f"Click placed at {i}")
 
         self.selection = [0, 0, 0] # reset the selection
-    def move(self, move):
+
+    def move(self, move): # this function just moves the piece and performs any takes; it appears to be finished and should be able to deal with multiple jumps
         if move.find("-") != -1: # This is the code for steps
             placeStrings = move.split("-")
             if len(placeStrings) != 2: # just sanity check, make sure we're not getting something stupid
@@ -151,6 +154,7 @@ class Board:
             self.pieces[start - 1].team = 0
         else:
             return False
+
     def toMovetext(self, start, end): # this function won't check whether the move actually makes sense, as that's someone else's job
         # we need some logic to figure out whether this is a short move, otherwise a jump is assumed
         width = self.size[0]//2
@@ -166,69 +170,29 @@ class Board:
             return f"{start}-{end}"
         else:
             return f"{start}x{end}" # the caller should do something to allow/force players to take more than one piece in a turn
-    def validMoves(self):
+
+    def validMoves(self): # this function returns an array of the valid moves
         width = self.size[0]//2
         maxPlace = len(self.pieces)
+        threshold = 0
         validMoves = []
 
         for i in range(maxPlace):
             place = i + 1
             team = self.pieces[i].team
-            evenRow = ((place-1)//width)%2 # 0 on odd rows and 1 on even rows
-            # First, we need to check a move down and to the left
-            # This is place + width on an odd row and place + width - 1 on an even row
-            target = place + width - evenRow
-            stepability = self.checkStep(place, target, team)
-            if stepability == 1: # check if we can land there
-                validMoves.append(f"{place}-{target}")
-            elif stepability == 2: # If this is true, there is an enemy piece there
-                # We need to check if we can land behind and take it
-                # To find this from the place we just repeat the step, but replace evenRow with 1 - evenRow as it is opposite
-                # behind = place + width - evenRow + width - 1 + evenRow can be simplified
-                behind = place + 2*width - 1
-                if self.checkStep(target, behind, team) == 1: # if we can land here
-                    validMoves.append(f"{place}x{behind}") # then we can jump to behind; later a recursion should happen here
-            # Next, we check down and to the right
-            # This is place + width + 1 on an odd row and place + width on an even row
-            target = place + width + 1 - evenRow
-            stepability = self.checkStep(place, target, team)
-            if stepability == 1: # check if we can land there
-                validMoves.append(f"{place}-{target}")
-            elif stepability == 2: # If this is true, there is an enemy piece there
-                # We need to check if we can land behind and take it
-                # To find this from the place we just repeat the step, but replace evenRow with 1 - evenRow as it is opposite
-                # behind = place + width + 1 - evenRow + width + 1 - 1 + evenRow can be simplified
-                behind = place + 2*width + 1
-                if self.checkStep(target, behind, team) == 1: # if we can land here
-                    validMoves.append(f"{place}x{behind}") # then we can jump to behind; later a recursion should happen here
-            # Now we check up and to the left
-            # This is place - width on an odd row and place - width - 1 on an even row
-            target = place - width - evenRow
-            stepability = self.checkStep(place, target, team)
-            if stepability == 1: # check if we can land there
-                validMoves.append(f"{place}-{target}")
-            elif stepability == 2: # If this is true, there is an enemy piece there
-                # We need to check if we can land behind and take it
-                # To find this from the place we just repeat the step, but replace evenRow with 1 - evenRow as it is opposite
-                # behind = place - width - evenRow - width - 1 + evenRow can be simplified
-                behind = place - 2*width - 1
-                if self.checkStep(target, behind, team) == 1: # if we can land here
-                    validMoves.append(f"{place}x{behind}") # then we can jump to behind; later a recursion should happen here
-            # Finally, we need check up and to the right
-            # This is place - width + 1 on an odd row and place - width on an even row
-            target = place - width + 1 - evenRow
-            stepability = self.checkStep(place, target, team)
-            if stepability == 1: # check if we can land there
-                validMoves.append(f"{place}-{target}")
-            elif stepability == 2: # If this is true, there is an enemy piece there
-                # We need to check if we can land behind and take it
-                # To find this from the place we just repeat the step, but replace evenRow with 1 - evenRow as it is opposite
-                # behind = place - width + 1 - evenRow - width + 1 - 1 + evenRow can be simplified
-                behind = place - 2*width + 1
-                if self.checkStep(target, behind, team) == 1: # if we can land here
-                    validMoves.append(f"{place}x{behind}") # then we can jump to behind; later a recursion should happen here
+            # there was a bunch of repetative code here before but the function fixes this
+            for i in range(4): # check all four directions
+                newThreshold = 0
+                newMoves = []
+                newThreshold, *newMoves = self.findStep(place, i, team, threshold) # find the moves in the direction we're checking
+                if newThreshold > threshold: # if we've found more important moves than any we have
+                    threshold = newThreshold # require new moves to be at least as important
+                    validMoves = [] # clear the old, unimportant moves
+                validMoves.extend(newMoves) # add the new moves; NOTE we use extend here instead of append because we're adding the contents of the list
+
         return validMoves # I don't know how I forgot this the first time
-    def checkStep(self, start, end, team):
+
+    def checkStep(self, start, end, team): # this function returns 0 if the position is unreachable or contains a piece on team team, 1 if the position is free (a piece can land there), and 2 if it contains a piece on the opposite team
         width = self.size[0]//2
         maxPlace = len(self.pieces)
         evenRow = ((start-1)//width)%2 # 0 on odd rows and 1 on even rows
@@ -253,15 +217,47 @@ class Board:
         else: # we don't need this else but it might improve readability?
             return 2 # This is an enemy piece, further investigation may be required
 
+    def findStep(self, place, direction, team, threshold = 0, landOnly = False): # this function will return its threshold (how many times it jumps) and an array of the move(s) it has found, unless landOnly is True, in which case it will return 0 or the place it can land on
+        width = self.size[0]//2
+        evenRow = ((place-1)//width)%2 # 0 on odd rows and 1 on even rows
+
+        directions = [ # an array for where things go, purely because it's easer than a bunch of elifs
+            place + width - evenRow,
+            place + width + 1 - evenRow,
+            place - width - evenRow,
+            place - width + 1 - evenRow
+        ]
+
+        # First, we need to check a move down and to the left
+        # This is place + width on an odd row and place + width - 1 on an even row
+        target = directions[direction]
+        stepability = self.checkStep(place, target, team)
+        if stepability == 1: # check if we can land there
+            if landOnly:
+                return target
+            elif threshold == 0: # only bother returning a step if we aren't jumping anywhere
+                return [0, f"{place}-{target}"]
+            else:
+                return [0]
+        elif stepability == 2 and not landOnly: # If this is true, there is an enemy piece there
+            # We need to check if we can land behind and take it
+            if (behind := self.findStep(target, direction, team, threshold - 1, True)): # we check if we can land in the place behind
+                return [1, f"{place}x{behind}"] # we just return the jump; FIXME we need to check further jumps
+
+        if landOnly: # if everything falls through then we return nothing
+            return 0
+        else:
+            return [threshold]
+
 board = Board([10, 10])
 
-def clicked(gesture, data, x, y):
+def clicked(gesture, data, x, y): # this function gets the board to handle the click
     global win
     # print(f"Click recieved at x={x}, y={y}")
     board.clicked(x, y)
     win.da.queue_draw()
 
-def activation(app):
+def activation(app): # this function gets called when the app is activated
     global win
     win = Gtk.ApplicationWindow(application=app)
 
@@ -292,14 +288,14 @@ def draw(area, ctx, w, h, data):
     board.draw(ctx, w, h)
 
 app = Adw.Application(application_id="org.duckdns.number251.draughts")
-app.connect('activate', activation)
+app.connect('activate', activation) # call activation when the app is ready to activate
 
 app.run(None)
 
 
 
 # ================================ Working Out ================================
-# note: these calculations only work for even board widths
+# NOTE: these calculations only work for even board widths
 # i = x - 1 + (y-1)*(board.width/2)
 # i - (y-1)*(board.width/2) = x - 1
 # i % (board.width/2) = x - 1; as x - 1 < board.width/2 and y-1 is an integer
