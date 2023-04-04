@@ -206,7 +206,7 @@ class Board:
 
         return validMoves # I don't know how I forgot this the first time
 
-    def checkStep(self, start, end, team): # this function returns 0 if the position is unreachable or contains a piece on team team, 1 if the position is free (a piece can land there), and 2 if it contains a piece on the opposite team
+    def checkStep(self, start, end, team, majesty = False): # this function returns 0 if the position is unreachable or contains a piece on team team, 1 if the position is free (a piece can land there), and 2 if it contains a piece on the opposite team
         width = self.size[0]//2
         maxPlace = len(self.pieces)
         evenRow = ((start-1)//width)%2 # 0 on odd rows and 1 on even rows
@@ -227,11 +227,14 @@ class Board:
             return 0 # we can't move there, as it's not adjacent to our piece
 
         if self.pieces[end-1].team == 0: # this checks if the spot is empty
-            return 1 # we can land there
+            if not majesty and team*end > team*start: # white men can't step to a spot with a larger number, multiplying by a negative effectively inverts the >
+                return 0
+            else:
+                return 1 # we can land there
         else: # we don't need this else but it might improve readability?
             return 2 # This is an enemy piece, further investigation may be required
 
-    def findStep(self, place, direction, team, threshold = 0, landOnly = False): # this function will return its threshold (how many times it jumps) and an array of the move(s) it has found, unless landOnly is True, in which case it will return 0 or the place it can land on
+    def findStep(self, place, direction, team, threshold = 0, majesty = False, landOnly = False): # this function will return its threshold (how many times it jumps) and an array of the move(s) it has found, unless landOnly is True, in which case it will return 0 or the place it can land on
         width = self.size[0]//2
         evenRow = ((place-1)//width)%2 # 0 on odd rows and 1 on even rows
 
@@ -245,7 +248,7 @@ class Board:
         # First, we need to check a move down and to the left
         # This is place + width on an odd row and place + width - 1 on an even row
         target = directions[direction]
-        stepability = self.checkStep(place, target, team)
+        stepability = self.checkStep(place, target, team, majesty or landOnly) # if we are jumping we can move backwards
         if stepability == 1: # check if we can land there
             if landOnly:
                 return target
@@ -255,7 +258,7 @@ class Board:
                 return [0]
         elif stepability == 2 and not landOnly: # If this is true, there is an enemy piece there
             # We need to check if we can land behind and take it
-            if (behind := self.findStep(target, direction, team, threshold - 1, True)): # we check if we can land in the place behind
+            if (behind := self.findStep(target, direction, team, threshold - 1, majesty, True)): # we check if we can land in the place behind
                 return [1, f"{place}x{behind}"] # we just return the jump; FIXME we need to check further jumps
 
         if landOnly: # if everything falls through then we return nothing
@@ -283,21 +286,26 @@ def activation(app): # this function gets called when the app is activated
     win.button = Gtk.Button(label="Test")
     win.mainBox.append(win.button)
 
-
+    # create the drawing area to draw the game in
     win.da = Gtk.DrawingArea()
     win.da.set_hexpand(True)
     win.da.set_vexpand(True)
     win.da.set_draw_func(draw, None)
-    # we need to pick up button presses
+    # the area needs to pick up button presses
     click = Gtk.GestureClick.new()
     click.connect("pressed", clicked)
     win.da.add_controller(click)
 
-    win.gameBox.append(win.da)
+    # instead of putting the drawing area directly in the box, we ensure it remains square
+    win.aspectFrame = Gtk.AspectFrame()
+    win.aspectFrame.set_child(win.da)
+    win.gameBox.append(win.aspectFrame)
 
     # We need some way of telling the player whose turn it is
     board.turnLabel = Gtk.Label(label="It is white's turn")
     win.gameBox.append(board.turnLabel)
+    # A way to see what moves we can make would be nice
+    board.moveChooser = Gtk.ComboBox
 
     win.set_default_size(640, 480)
     win.set_title("Draughts")
