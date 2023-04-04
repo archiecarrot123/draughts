@@ -39,6 +39,7 @@ class Board:
         self.rectangleSize = (640/size[0], 480/size[1])
         self.selection = [0, 0, 0]
         self.turnLabel = None # this is how we might tell the players whose turn it is
+        self.moveList = None # this is how we can tell the player what moves they can make, and allow keyboard play
         self.currentTeam = 1
 
         for i in range(1, (self.size[0] * self.size[1] // 2) + 1): # i starts at 1
@@ -50,6 +51,8 @@ class Board:
                 self.pieces.append(Piece(position, i, 1))
             else: # everywhere else there is nothing
                 self.pieces.append(Piece(position, i))
+
+        self.validMoves = self.findValidMoves() # HOW did i not realise i needed to put this last?
 
     def draw(self, ctx, w, h): # this function draws the board and everything on it
         ctx.set_source_rgb(0, 0, 0)
@@ -100,8 +103,8 @@ class Board:
                     self.selection = [position[0], position[1], i] # select the piece
                 return # even if we couldn't select it we're done here
             movetext = self.toMovetext(self.selection[2], i)
-            if movetext in self.validMoves():
-                self.move(movetext) # try to move the previous selected piece to where we just clicked
+            if movetext in self.validMoves:
+                self.move(movetext) # try to move the previously selected piece to where we just clicked
 
             # print(f"Click placed at {i}")
 
@@ -158,12 +161,17 @@ class Board:
             return False
 
         self.currentTeam = -self.currentTeam # swap the team, as a move has been made
+        self.validMoves = self.findValidMoves() # update the list of valid moves
         if self.currentTeam == 1: # this feels a bit extreme but whatever
             teamName = "white"
         else:
             teamName = "black"
         if self.turnLabel: # just make sure that it exists
             self.turnLabel.set_label(f"It is {teamName}'s turn") # we need to tell the player whose turn it is
+        if self.moveList:
+            print(3)
+            length = self.moveList.get_n_items()
+            self.moveList.splice(0, length, self.validMoves)
         return True
 
     def toMovetext(self, start, end): # this function won't check whether the move actually makes sense, as that's someone else's job
@@ -182,7 +190,7 @@ class Board:
         else:
             return f"{start}x{end}" # the caller should do something to allow/force players to take more than one piece in a turn
 
-    def validMoves(self): # this function returns an array of the valid moves
+    def findValidMoves(self): # this function returns an array of the valid moves
         width = self.size[0]//2
         maxPlace = len(self.pieces)
         threshold = 0
@@ -266,6 +274,7 @@ class Board:
         else:
             return [threshold]
 
+
 board = Board([10, 10])
 
 def clicked(gesture, data, x, y): # this function gets the board to handle the click
@@ -274,17 +283,21 @@ def clicked(gesture, data, x, y): # this function gets the board to handle the c
     board.clicked(x, y)
     win.da.queue_draw()
 
+def chooseMove(button): # basically a simplified version of Board.clicked
+    movetext = win.moveChooser.get_selected_item().get_string() # get the string from the selected StringObject
+    if movetext in board.validMoves: # sanity check
+        board.move(movetext) # make the move
+        win.da.queue_draw() # we need to refresh the game
+
 def activation(app): # this function gets called when the app is activated
     global win
     win = Gtk.ApplicationWindow(application=app)
 
-    win.mainBox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-    win.set_child(win.mainBox)
-    win.gameBox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-    win.mainBox.append(win.gameBox)
+    win.grid = Gtk.Grid() # create a grid
+    win.set_child(win.grid) # add the grid to the window
 
-    win.button = Gtk.Button(label="Test")
-    win.mainBox.append(win.button)
+    # win.button = Gtk.Button(label="Test")
+    # win.grid.attach(win.button, 1, 0, 1, 1) # https://docs.gtk.org/gtk4/method.Grid.attach.html
 
     # create the drawing area to draw the game in
     win.da = Gtk.DrawingArea()
@@ -299,13 +312,20 @@ def activation(app): # this function gets called when the app is activated
     # instead of putting the drawing area directly in the box, we ensure it remains square
     win.aspectFrame = Gtk.AspectFrame()
     win.aspectFrame.set_child(win.da)
-    win.gameBox.append(win.aspectFrame)
+    win.grid.attach(win.aspectFrame, 0, 0, 1, 1) # column 0, row 0
 
     # We need some way of telling the player whose turn it is
     board.turnLabel = Gtk.Label(label="It is white's turn")
-    win.gameBox.append(board.turnLabel)
+    win.grid.attach(board.turnLabel, 0, 1, 1, 1) # column 0, row 1
     # A way to see what moves we can make would be nice
-    board.moveChooser = Gtk.ComboBox
+    board.moveList = Gtk.StringList.new(board.validMoves)
+    win.moveChooser = Gtk.DropDown(model=board.moveList)
+    win.grid.attach(win.moveChooser, 1, 1, 1, 1) # column 1, row 1
+    # The player should be able to press a button to make the move
+    win.moveButton = Gtk.Button(label="Move!")
+    win.moveButton.connect('clicked', chooseMove)
+    win.grid.attach(win.moveButton, 2, 1, 1, 1) # column 2, row 1
+
 
     win.set_default_size(640, 480)
     win.set_title("Draughts")
