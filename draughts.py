@@ -38,6 +38,8 @@ class Board:
         self.pieces = []
         self.rectangleSize = (640/size[0], 480/size[1])
         self.selection = [0, 0, 0]
+        self.turnLabel = None # this is how we might tell the players whose turn it is
+        self.currentTeam = 1
 
         for i in range(1, (self.size[0] * self.size[1] // 2) + 1): # i starts at 1
             offset = ((i-1) // (self.size[0]//2) + 1) % 2 + 1 # this is 2 if the row is odd or 1 if it is even
@@ -93,9 +95,10 @@ class Board:
         # print(f"Click in position {position}")
         if (position[0] + position[1]) % 2 == 1: # this checks if we are in a black square
             i = (position[0]+1)//2 + (position[1]-1)*(self.size[0]//2)
-            if self.pieces[i-1].team != 0:
-                self.selection = [position[0], position[1], i] # select the piece
-                return # and we're done here
+            if (team := self.pieces[i-1].team): # check that there is a piece there; NOTE the walrus operator (:=) returns the assigned value
+                if team == self.currentTeam: # only allow selection of a piece on our team
+                    self.selection = [position[0], position[1], i] # select the piece
+                return # even if we couldn't select it we're done here
             movetext = self.toMovetext(self.selection[2], i)
             if movetext in self.validMoves():
                 self.move(movetext) # try to move the previous selected piece to where we just clicked
@@ -131,7 +134,6 @@ class Board:
 
             self.pieces[end - 1].team = self.pieces[start - 1].team
             self.pieces[start - 1].team = 0
-            return True # if we've gotten this far, the move was probably valid
         elif move.find("x") != -1: # Here we deal with jumps
             placeStrings = move.split("x")
             if len(placeStrings) < 2: # make sure there is at least a beginning and an end
@@ -154,6 +156,15 @@ class Board:
             self.pieces[start - 1].team = 0
         else:
             return False
+
+        self.currentTeam = -self.currentTeam # swap the team, as a move has been made
+        if self.currentTeam == 1: # this feels a bit extreme but whatever
+            teamName = "white"
+        else:
+            teamName = "black"
+        if self.turnLabel: # just make sure that it exists
+            self.turnLabel.set_label(f"It is {teamName}'s turn") # we need to tell the player whose turn it is
+        return True
 
     def toMovetext(self, start, end): # this function won't check whether the move actually makes sense, as that's someone else's job
         # we need some logic to figure out whether this is a short move, otherwise a jump is assumed
@@ -180,6 +191,9 @@ class Board:
         for i in range(maxPlace):
             place = i + 1
             team = self.pieces[i].team
+
+            if team != self.currentTeam:
+                continue
             # there was a bunch of repetative code here before but the function fixes this
             for i in range(4): # check all four directions
                 newThreshold = 0
@@ -261,13 +275,14 @@ def activation(app): # this function gets called when the app is activated
     global win
     win = Gtk.ApplicationWindow(application=app)
 
-    win.mainBox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+    win.mainBox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
     win.set_child(win.mainBox)
-    win.gameBox = Gtk.Box()
+    win.gameBox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
     win.mainBox.append(win.gameBox)
 
     win.button = Gtk.Button(label="Test")
     win.mainBox.append(win.button)
+
 
     win.da = Gtk.DrawingArea()
     win.da.set_hexpand(True)
@@ -279,6 +294,10 @@ def activation(app): # this function gets called when the app is activated
     win.da.add_controller(click)
 
     win.gameBox.append(win.da)
+
+    # We need some way of telling the player whose turn it is
+    board.turnLabel = Gtk.Label(label="It is white's turn")
+    win.gameBox.append(board.turnLabel)
 
     win.set_default_size(640, 480)
     win.set_title("Draughts")
