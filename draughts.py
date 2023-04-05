@@ -169,9 +169,9 @@ class Board:
         if self.turnLabel: # just make sure that it exists
             self.turnLabel.set_label(f"It is {teamName}'s turn") # we need to tell the player whose turn it is
         if self.moveList:
-            print(3)
             length = self.moveList.get_n_items()
             self.moveList.splice(0, length, self.validMoves)
+        print(move)
         return True
 
     def toMovetext(self, start, end): # this function won't check whether the move actually makes sense, as that's someone else's job
@@ -212,6 +212,11 @@ class Board:
                     validMoves = [] # clear the old, unimportant moves
                 validMoves.extend(newMoves) # add the new moves; NOTE we use extend here instead of append because we're adding the contents of the list
 
+        if len(validMoves) == 0: # if there are no moves left you lose
+            if self.currentTeam == 1:
+                self.turnLabel.set_label("Black wins!")
+            else:
+                self.turnLabel.set_label("White wins!")
         return validMoves # I don't know how I forgot this the first time
 
     def checkStep(self, start, end, team, majesty = False): # this function returns 0 if the position is unreachable or contains a piece on team team, 1 if the position is free (a piece can land there), and 2 if it contains a piece on the opposite team
@@ -267,12 +272,31 @@ class Board:
         elif stepability == 2 and not landOnly: # If this is true, there is an enemy piece there
             # We need to check if we can land behind and take it
             if (behind := self.findStep(target, direction, team, threshold - 1, majesty, True)): # we check if we can land in the place behind
-                return [1, f"{place}x{behind}"] # we just return the jump; FIXME we need to check further jumps
+                foundMoves = [max(threshold, 1)]
+                if threshold <= 1:
+                    threshold = 1 # we've found a move of depth 1
+                    foundMoves.append(f"{place}x{behind}") # this is the move we've just found
+
+                # this is similar to what is done in findValidMoves
+                for i in range(4): # check all four directions
+                    if i == 3 - direction: # except where we came from
+                        continue
+                    newThreshold = 0
+                    newMoves = []
+                    newThreshold, *newMoves = self.findStep(behind, i, team, max(threshold - 1, 1)) # threshold is reduced as we're checking deeper, actually that's really confusing but we need to make sure it's not less than 1, also this function should return the deepest it's found not the thing it got in i need to fix that
+                    # oh my god how did i not realise that it needed to start from behind not place ;(
+                    if newThreshold + 1 > threshold: # if we've found more important moves than any we have
+                        threshold = newThreshold + 1 # require new moves to be at least as important
+                        foundMoves = [threshold] # clear the old, unimportant moves
+                    for i in range(len(newMoves)): # we need to add the start to the beginning of these
+                        newMoves[i] = f"{place}x{newMoves[i]}"
+                    foundMoves.extend(newMoves) # add the new moves; NOTE we use extend here instead of append because we're adding the contents of the list
+                return foundMoves # we return the moves
 
         if landOnly: # if everything falls through then we return nothing
             return 0
         else:
-            return [threshold]
+            return [0] # we found nothing, that's completely unimportant so we return [0] NOT [threshold]
 
 
 board = Board([10, 10])
@@ -287,7 +311,7 @@ def chooseMove(button): # basically a simplified version of Board.clicked
     movetext = win.moveChooser.get_selected_item().get_string() # get the string from the selected StringObject
     if movetext in board.validMoves: # sanity check
         board.move(movetext) # make the move
-        win.da.queue_draw() # we need to refresh the game
+        win.da.queue_draw() # we need to refresh the image
 
 def activation(app): # this function gets called when the app is activated
     global win
