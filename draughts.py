@@ -172,6 +172,11 @@ class Board:
             length = self.moveList.get_n_items()
             self.moveList.splice(0, length, self.validMoves)
         print(move)
+        if len(self.validMoves) == 0: # if there are no moves left you lose
+            if self.currentTeam == 1:
+                self.turnLabel.set_label("Black wins!")
+            else:
+                self.turnLabel.set_label("White wins!")
         return True
 
     def toMovetext(self, start, end): # this function won't check whether the move actually makes sense, as that's someone else's job
@@ -212,11 +217,6 @@ class Board:
                     validMoves = [] # clear the old, unimportant moves
                 validMoves.extend(newMoves) # add the new moves; NOTE we use extend here instead of append because we're adding the contents of the list
 
-        if len(validMoves) == 0: # if there are no moves left you lose
-            if self.currentTeam == 1:
-                self.turnLabel.set_label("Black wins!")
-            else:
-                self.turnLabel.set_label("White wins!")
         return validMoves # I don't know how I forgot this the first time
 
     def checkStep(self, start, end, team, majesty = False): # this function returns 0 if the position is unreachable or contains a piece on team team, 1 if the position is free (a piece can land there), and 2 if it contains a piece on the opposite team
