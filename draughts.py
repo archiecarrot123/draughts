@@ -330,7 +330,7 @@ def activation(app): # this function gets called when the app is activated
     win.da.set_draw_func(draw, None)
     # the area needs to pick up button presses
     click = Gtk.GestureClick.new()
-    click.connect("pressed", clicked)
+    click.connect("pressed", clicked) # when the mouse button is pressed on the game window we need to call clicked
     win.da.add_controller(click)
 
     # instead of putting the drawing area directly in the box, we ensure it remains square
@@ -342,12 +342,12 @@ def activation(app): # this function gets called when the app is activated
     board.turnLabel = Gtk.Label(label="It is white's turn")
     win.grid.attach(board.turnLabel, 0, 1, 1, 1) # column 0, row 1
     # A way to see what moves we can make would be nice
-    board.moveList = Gtk.StringList.new(board.validMoves)
-    win.moveChooser = Gtk.DropDown(model=board.moveList)
+    board.moveList = Gtk.StringList.new(board.validMoves) # create a GObject string list for the valid moves to be copied into
+    win.moveChooser = Gtk.DropDown(model=board.moveList) # create a DropDown that uses the string list we just created
     win.grid.attach(win.moveChooser, 1, 1, 1, 1) # column 1, row 1
     # The player should be able to press a button to make the move
     win.moveButton = Gtk.Button(label="Move!")
-    win.moveButton.connect('clicked', chooseMove)
+    win.moveButton.connect('clicked', chooseMove) # when the button is clicked we need to call chooseMove
     win.grid.attach(win.moveButton, 2, 1, 1, 1) # column 2, row 1
 
 
