@@ -211,7 +211,7 @@ class Board:
             for i in range(4): # check all four directions
                 newThreshold = 0
                 newMoves = []
-                newThreshold, *newMoves = self.findStep(place, i, team, threshold) # find the moves in the direction we're checking
+                newThreshold, *newMoves = self.findStep(place, i, team, threshold, exclusion = []) # find the moves in the direction we're checking
                 if newThreshold > threshold: # if we've found more important moves than any we have
                     threshold = newThreshold # require new moves to be at least as important
                     validMoves = [] # clear the old, unimportant moves
@@ -219,7 +219,7 @@ class Board:
 
         return validMoves # I don't know how I forgot this the first time
 
-    def checkStep(self, start, end, team, majesty = False): # this function returns 0 if the position is unreachable or contains a piece on team team, 1 if the position is free (a piece can land there), and 2 if it contains a piece on the opposite team
+    def checkStep(self, start, end, team, backwards = False): # this function returns 0 if the position is unreachable or contains a piece on team team, 1 if the position is free (a piece can land there), and 2 if it contains a piece on the opposite team
         width = self.size[0]//2
         maxPlace = len(self.pieces)
         evenRow = ((start-1)//width)%2 # 0 on odd rows and 1 on even rows
@@ -240,14 +240,14 @@ class Board:
             return 0 # we can't move there, as it's not adjacent to our piece
 
         if self.pieces[end-1].team == 0: # this checks if the spot is empty
-            if not majesty and team*end > team*start: # white men can't step to a spot with a larger number, multiplying by a negative effectively inverts the >
+            if not backwards and team*end > team*start: # white men can't step to a spot with a larger number, multiplying by a negative effectively inverts the >
                 return 0
             else:
                 return 1 # we can land there
         else: # we don't need this else but it might improve readability?
             return 2 # This is an enemy piece, further investigation may be required
 
-    def findStep(self, place, direction, team, threshold = 0, majesty = False, landOnly = False): # this function will return its threshold (how many times it jumps) and an array of the move(s) it has found, unless landOnly is True, in which case it will return 0 or the place it can land on
+    def findStep(self, place, direction, team, threshold = 0, majesty = False, landOnly = False, exclusion = []): # this function will return its threshold (how many times it jumps) and an array of the move(s) it has found, unless landOnly is True, in which case it will return 0 or the place it can land on; exclusion is so that pieces can't jump the same piece twice
         width = self.size[0]//2
         evenRow = ((place-1)//width)%2 # 0 on odd rows and 1 on even rows
 
@@ -269,13 +269,14 @@ class Board:
                 return [0, f"{place}-{target}"]
             else:
                 return [0]
-        elif stepability == 2 and not landOnly: # If this is true, there is an enemy piece there
+        elif stepability == 2 and not landOnly and target not in exclusion: # If this is true, there is an enemy piece there
             # We need to check if we can land behind and take it
             if (behind := self.findStep(target, direction, team, threshold - 1, majesty, True)): # we check if we can land in the place behind
                 foundMoves = [max(threshold, 1)]
                 if threshold <= 1:
                     threshold = 1 # we've found a move of depth 1
                     foundMoves.append(f"{place}x{behind}") # this is the move we've just found
+                    exclusion.append(target) # we can't go to target from here
 
                 # this is similar to what is done in findValidMoves
                 for i in range(4): # check all four directions
@@ -283,7 +284,7 @@ class Board:
                         continue
                     newThreshold = 0
                     newMoves = []
-                    newThreshold, *newMoves = self.findStep(behind, i, team, max(threshold - 1, 1)) # threshold is reduced as we're checking deeper, actually that's really confusing but we need to make sure it's not less than 1, also this function should return the deepest it's found not the thing it got in i need to fix that
+                    newThreshold, *newMoves = self.findStep(behind, i, team, max(threshold - 1, 1), exclusion = exclusion.copy()) # threshold is reduced as we're checking deeper, actually that's really confusing but we need to make sure it's not less than 1, also this function should return the deepest it's found not the thing it got in i need to fix that; pass on exclusion so we don't go over the same piece
                     # oh my god how did i not realise that it needed to start from behind not place ;(
                     if newThreshold + 1 > threshold: # if we've found more important moves than any we have
                         threshold = newThreshold + 1 # require new moves to be at least as important
