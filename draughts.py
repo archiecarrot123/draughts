@@ -30,7 +30,16 @@ class Piece:
         elif self.team == 1:
             ctx.set_source_rgb(1, 1, 0.5)
         ctx.arc(xc, yc, radius, 0, 2 * math.pi)
-        ctx.fill()
+        ctx.fill() # fill in the circle
+        # now we need to draw the circles around them
+        ctx.set_source_rgb(0.5, 0.5, 0) # a sort of dark yellow
+        ctx.set_line_width(0.004*radius**2 + 0.07*radius) # strange quadrilateral i made up to scale the radius
+        ctx.arc(xc, yc, radius, 0, 2 * math.pi)
+        ctx.stroke()
+        if self.majesty:
+            ctx.set_line_width(0.00256*radius**2 + 0.056*radius)
+            ctx.arc(xc, yc, radius * 0.8 - 0.004*radius**2, 0, 2 * math.pi)
+            ctx.stroke()
 
 class Board:
     def __init__(self, size):
@@ -79,7 +88,7 @@ class Board:
         if self.selection[2]:
             xc = (self.selection[0] - 0.5) * rectangleSize[0]
             yc = (self.selection[1] - 0.5) * rectangleSize[1]
-            radius = 0.45 * min(rectangleSize[0], rectangleSize[1])
+            radius = 0.48 * min(rectangleSize[0], rectangleSize[1])
 
             ctx.set_source_rgb(1, 0, 1)
             ctx.arc(xc, yc, radius, 0, 2 * math.pi)
@@ -118,9 +127,6 @@ class Board:
 
             start = int(placeStrings[0])
             end = int(placeStrings[1])
-
-            self.pieces[end - 1].team = self.pieces[start - 1].team
-            self.pieces[start - 1].team = 0
         elif move.find("x") != -1: # Here we deal with jumps
             placeStrings = move.split("x")
             if len(placeStrings) < 2: # make sure there is at least a beginning and an end
@@ -136,16 +142,24 @@ class Board:
 
                 middle = (start + end + offset)//2 # it's just the average of the start and end, plus half the offset (wacky magic panacea value)
                 self.pieces[middle - 1].team = 0 # KILL IT!!!
+                self.pieces[middle - 1].majesty = False # if it's dead it's no longer a king
             # we move the piece at the end, to save a little time
             start = int(placeStrings[0])
             end = int(placeStrings[len(placeStrings) - 1])
-            self.pieces[end - 1].team = self.pieces[start - 1].team
-            self.pieces[start - 1].team = 0
         else:
             return False
 
+        # this code was the same so i moved it
+        team = self.pieces[start - 1].team
+        self.pieces[end - 1].team = team
+        self.pieces[start - 1].team = 0
+        # move majesty as well
+        self.pieces[end - 1].majesty = self.pieces[start - 1].majesty
+        self.pieces[start - 1].majesty = False
+
         self.currentTeam = -self.currentTeam # swap the team, as a move has been made
         self.validMoves = self.findValidMoves() # update the list of valid moves
+
         if self.currentTeam == 1: # this feels a bit extreme but whatever
             teamName = "white"
         else:
@@ -155,6 +169,10 @@ class Board:
         if self.moveList:
             length = self.moveList.get_n_items()
             self.moveList.splice(0, length, self.validMoves)
+
+        if (end <= self.size[0]//2 and team > 0) or (end > (self.size[0]//2)*(self.size[1]-1) and team < 0): # if the piece is at the top and white or at the bottom and black
+            self.pieces[end - 1].majesty = True # make the piece a king
+
         print(move)
         if len(self.validMoves) == 0: # if there are no moves left you lose
             if self.currentTeam == 1:
@@ -192,10 +210,10 @@ class Board:
             if team != self.currentTeam:
                 continue
             # there was a bunch of repetative code here before but the function fixes this
-            for i in range(4): # check all four directions
+            for j in range(4): # check all four directions
                 newThreshold = 0
                 newMoves = []
-                newThreshold, *newMoves = self.findStep(place, i, team, threshold, exclusion = []) # find the moves in the direction we're checking
+                newThreshold, *newMoves = self.findStep(place, j, team, threshold, self.pieces[i].majesty, exclusion = []) # find the moves in the direction we're checking
                 if newThreshold > threshold: # if we've found more important moves than any we have
                     threshold = newThreshold # require new moves to be at least as important
                     validMoves = [] # clear the old, unimportant moves
