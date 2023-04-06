@@ -119,22 +119,6 @@ class Board:
             start = int(placeStrings[0])
             end = int(placeStrings[1])
 
-            # checking if the move is valid is not our problem anymore
-            # if not (start and end): # if start and end aren't both nonzero then we give up
-            #     return False
-            #
-            # width = self.size[0]//2
-            # evenRow = ((start-1)//width)%2 # 0 on odd rows and 1 on even rows
-            # offset = 1 - 2*evenRow # swaps between 1 on the odd rows and -1 on the even ones
-            # validEnds = [start + width, start - width]
-            # # If the place is at the edge of the board then it loses a few options
-            # if start%width != evenRow: # somewhat surprisingly, this works as places begin at 1
-            #     validEnds.append(start + width + offset)
-            #     validEnds.append(start - width + offset)
-            #
-            # if end not in validEnds:
-            #     return False
-
             self.pieces[end - 1].team = self.pieces[start - 1].team
             self.pieces[start - 1].team = 0
         elif move.find("x") != -1: # Here we deal with jumps
