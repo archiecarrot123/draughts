@@ -64,6 +64,7 @@ class Board:
         self.validMoves = self.findValidMoves() # HOW did i not realise i needed to put this last?
 
     def draw(self, ctx, w, h): # this function draws the board and everything on it
+        """draws the board and everything on it"""
         ctx.set_source_rgb(0, 0, 0)
         ctx.paint()
 
@@ -103,6 +104,7 @@ class Board:
         self.rectangleSize = rectangleSize
 
     def clicked(self, x, y): # this function is responsible for handling clicks (obviously)
+        """responsible for handling clicks"""
         position = int(x // self.rectangleSize[0]) + 1, int(y // self.rectangleSize[1]) + 1
         # print(f"Click in position {position}")
         if (position[0] + position[1]) % 2 == 1: # this checks if we are in a black square
@@ -120,6 +122,7 @@ class Board:
         self.selection = [0, 0, 0] # reset the selection
 
     def move(self, move): # this function just moves the piece and performs any takes; it appears to be finished and should be able to deal with multiple jumps
+        """moves the piece and does takes, the move must be in long notation; can't deal with flying jumps yet"""
         if move.find("-") != -1: # This is the code for steps
             placeStrings = move.split("-")
             if len(placeStrings) != 2: # just sanity check, make sure we're not getting something stupid
@@ -182,22 +185,24 @@ class Board:
         return True
 
     def toMovetext(self, start, end): # this function won't check whether the move actually makes sense, as that's someone else's job
+        """converts a start and end point to movetext for the clicked function"""
         # we need some logic to figure out whether this is a short move, otherwise a jump is assumed
         width = self.size[0]//2
         evenRow = ((start-1)//width)%2 # 0 on odd rows and 1 on even rows
         offset = 1 - 2*evenRow # swaps between 1 on the odd rows and -1 on the even ones
-        shortEnds = [start + width, start - width]
+        stepEnds = [start + width, start - width]
         # If the place is at the edge of the board then it loses a few options
         if start%width != evenRow: # somewhat surprisingly, this works as places begin at 1
-            shortEnds.append(start + width + offset)
-            shortEnds.append(start - width + offset)
+            stepEnds.append(start + width + offset)
+            stepEnds.append(start - width + offset)
 
-        if end in shortEnds:
+        if end in stepEnds:
             return f"{start}-{end}"
         else:
             return f"{start}x{end}" # the caller should do something to allow/force players to take more than one piece in a turn
 
     def findValidMoves(self): # this function returns an array of the valid moves
+        """returns an array of valid moves this turn in long notation"""
         width = self.size[0]//2
         maxPlace = len(self.pieces)
         threshold = 0
@@ -222,6 +227,7 @@ class Board:
         return validMoves # I don't know how I forgot this the first time
 
     def checkStep(self, start, end, team, backwards = False): # this function returns 0 if the position is unreachable or contains a piece on team team, 1 if the position is free (a piece can land there), and 2 if it contains a piece on the opposite team
+        """returns 0 if the position is unreachable or contains a piece on team team, 1 if the position is free (a piece can land there), and 2 if it contains a piece on the opposite team"""
         width = self.size[0]//2
         maxPlace = len(self.pieces)
         evenRow = ((start-1)//width)%2 # 0 on odd rows and 1 on even rows
@@ -250,6 +256,7 @@ class Board:
             return 2 # This is an enemy piece, further investigation may be required
 
     def findStep(self, place, direction, team, threshold = 0, majesty = False, landOnly = False, exclusion = []): # this function will return its threshold (how many times it jumps) and an array of the move(s) it has found, unless landOnly is True, in which case it will return 0 or the place it can land on; exclusion is so that pieces can't jump the same piece twice
+        """returns an array of its threshold (how many times it jumps) and the move(s) it has found, unless landOnly is True, in which case it will return 0 or the place it can land on"""
         width = self.size[0]//2
         evenRow = ((place-1)//width)%2 # 0 on odd rows and 1 on even rows
 
